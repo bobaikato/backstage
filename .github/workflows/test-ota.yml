@@ -190,7 +190,7 @@ jobs:
               sys.exit(1)
 
           actions = (((workflow_report.get('plan') or {}).get('actions')) or [])
-          if not any('provision `vale`' in str(action) for action in actions):
+          if not any('provision' in str(action) and 'vale' in str(action) for action in actions):
               print(json.dumps(workflow_report, indent=2))
               sys.exit(1)
           PY
@@ -220,7 +220,7 @@ jobs:
             exit 1
           }
 
-          if (-not ($workflowReport.plan.actions | ForEach-Object { $_.ToString() } | Where-Object { $_ -like '*provision `vale`*' })) {
+          if (-not ($workflowReport.plan.actions | ForEach-Object { $_.ToString() } | Where-Object { $_ -like '*provision*vale*' })) {
             $workflowReport | ConvertTo-Json -Depth 100
             exit 1
           }

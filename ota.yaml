@@ -48,27 +48,27 @@ tools:
       source_config:
         asset_by_platform:
           linux_x86_64:
-            url: https://github.com/errata-ai/vale/releases/download/v{version}/vale_{version}_Linux_64-bit.tar.gz
+            url: https://github.com/vale-cli/vale/releases/download/v{version}/vale_{version}_Linux_64-bit.tar.gz
             archive:
               format: tar_gz
               executable_path: vale
           linux_aarch64:
-            url: https://github.com/errata-ai/vale/releases/download/v{version}/vale_{version}_Linux_arm64.tar.gz
+            url: https://github.com/vale-cli/vale/releases/download/v{version}/vale_{version}_Linux_arm64.tar.gz
             archive:
               format: tar_gz
               executable_path: vale
           macos_x86_64:
-            url: https://github.com/errata-ai/vale/releases/download/v{version}/vale_{version}_macOS_64-bit.tar.gz
+            url: https://github.com/vale-cli/vale/releases/download/v{version}/vale_{version}_macOS_64-bit.tar.gz
             archive:
               format: tar_gz
               executable_path: vale
           macos_aarch64:
-            url: https://github.com/errata-ai/vale/releases/download/v{version}/vale_{version}_macOS_arm64.tar.gz
+            url: https://github.com/vale-cli/vale/releases/download/v{version}/vale_{version}_macOS_arm64.tar.gz
             archive:
               format: tar_gz
               executable_path: vale
           windows_x86_64:
-            url: https://github.com/errata-ai/vale/releases/download/v{version}/vale_{version}_Windows_64-bit.zip
+            url: https://github.com/vale-cli/vale/releases/download/v{version}/vale_{version}_Windows_64-bit.zip
             archive:
               format: zip
               executable_path: vale.exe
