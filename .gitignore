@@ -191,3 +191,8 @@ dist-storybook/
 # Personal allow patterns etc
 .claude/settings.local.json
 .claude/worktrees/
+
+# Ota local runtime artifacts
+.ota/state/
+.ota/receipts/
+.ota/proof/

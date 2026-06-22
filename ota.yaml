@@ -1,0 +1,237 @@
+#
+#                █████
+#               ░░███
+#       ██████  ███████    ██████
+#      ███░░███░░░███░    ░░░░░███
+#     ░███ ░███  ░███      ███████
+#     ░███ ░███  ░███ ███ ███░░███
+#     ░░██████   ░░█████ ░░████████
+#      ░░░░░░     ░░░░░   ░░░░░░░░
+#
+#   Copyright (C) 2026 — 2026, Ota. All Rights Reserved.
+#
+#   DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
+#
+#   Licensed under the Apache License, Version 2.0. See LICENSE for the full license text.
+#   You may not use this file except in compliance with that License.
+#   Unless required by applicable law or agreed to in writing, software distributed under the
+#   License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
+#   either express or implied. See the License for the specific language governing permissions
+#   and limitations under the License.
+#
+#   If you need additional information or have any questions, please email: os@ota.run
+
+version: 1
+project:
+  name: backstage
+  description: Narrow root-contributor contract for Yarn 4 hydration, docs and config verification, and the Docker-backed local development lane
+  type: application
+toolchains:
+  node:
+    version: "22 || 24"
+    package_managers:
+      yarn: "4.8.1"
+    fulfillment:
+      source: corepack
+      mode: run
+execution:
+  default_context: host
+  contexts:
+    host:
+      backend: native
+      requirements:
+        tools:
+          docker: "*"
+services:
+  postgres:
+    manager:
+      kind: compose
+      name: backstage-deps
+      file: docker-compose.deps.yml
+      service: psql
+    endpoints:
+      host:
+        address: 127.0.0.1
+        port: 5432
+    readiness:
+      from: host
+      kind: tcp
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+  redis:
+    manager:
+      kind: compose
+      name: backstage-deps
+      file: docker-compose.deps.yml
+      service: redis
+    endpoints:
+      host:
+        address: 127.0.0.1
+        port: 6379
+    readiness:
+      from: host
+      kind: tcp
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+  opensearch:
+    manager:
+      kind: compose
+      name: backstage-deps
+      file: docker-compose.deps.yml
+      service: opensearch
+    endpoints:
+      host:
+        address: 127.0.0.1
+        port: 9200
+    readiness:
+      from: host
+      kind: tcp
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 15s
+surfaces:
+  site:
+    kind: http
+    label: Backstage UI
+    purpose: Root local Backstage contributor UI
+    visibility: internal
+    port: 3000
+    path: /
+    readiness:
+      kind: tcp
+      interval: 5s
+      timeout: 3s
+      retries: 24
+      start_period: 20s
+tasks:
+  setup:
+    description: Hydrate the root Yarn 4 workspace through the declared package-manager lane
+    prepare:
+      kind: dependency_hydration
+      medium: package_dependencies
+      source:
+        kind: node_package_manager
+        cwd: .
+        manager: yarn
+        mode: install
+        frozen_lockfile: true
+    requirements:
+      toolchains:
+        - node
+    effects:
+      writes:
+        - node_modules
+        - .yarn/install-state.gz
+      network: true
+      network_kind: dependency_hydration
+  lint:docs:
+    description: Run the docs quality gate used by the repo root
+    command:
+      exe: yarn
+      args:
+        - lint:docs
+    depends_on:
+      - setup
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+  config:check:
+    description: Validate the merged Backstage config graph with the repo's lax root gate
+    command:
+      exe: yarn
+      args:
+        - backstage-cli
+        - config:check
+        - --lax
+    depends_on:
+      - setup
+    requirements:
+      toolchains:
+        - node
+    safe_for_agent: true
+  verify:
+    description: Run the narrow canonical verification surface for this contributor slice
+    aggregate:
+      tasks:
+        - lint:docs
+        - config:check
+    safe_for_agent: true
+  dev:
+    context: host
+    description: Start Backstage against the Docker-managed dependency stack
+    env:
+      BACKSTAGE_ENV: docker
+    launch:
+      kind: command
+      exe: yarn
+      args:
+        - start
+    depends_on:
+      - setup
+    requires_services:
+      - postgres
+      - redis
+      - opensearch
+    requirements:
+      toolchains:
+        - node
+    runtime:
+      kind: service
+      surfaces:
+        - site
+workflows:
+  default: app
+  verify:
+    intent: verification
+    description: Prepare the root workspace and run the finite docs and config verification lane
+    setup:
+      task: setup
+    run:
+      task: verify
+  app:
+    intent: local_development
+    description: Start the root Backstage contributor app with managed Docker dependencies instead of shell-owned compose glue
+    setup:
+      task: setup
+    run:
+      task: dev
+    readiness:
+      surfaces:
+        - site
+agent:
+  bootstrap:
+    ota:
+      note: Only install ota if it is missing and installation is approved.
+      source:
+        kind: branch
+        branch: 1.6.22-implementation
+  entrypoint: setup
+  default_task: verify
+  safe_tasks:
+    - lint:docs
+    - config:check
+    - verify
+  verify_after_changes:
+    - verify
+  writable_paths:
+    - .yarn/install-state.gz
+    - docs
+    - node_modules
+    - packages
+    - plugins
+    - scripts
+  protected_paths:
+    - .github/workflows
+    - ota.yaml
+    - package.json
+    - yarn.lock
+  notes: |
+    Use `ota run verify` for the narrow root contributor gate before broadening into heavier repo-wide CI tasks.
+    Use `ota up --workflow app` when you want Ota to own the Docker dependency services and the root
+    `yarn start` launch lane instead of the repo's shell `start:docker` script.
