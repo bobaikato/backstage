@@ -166,19 +166,32 @@ jobs:
         if: matrix.run_shell == 'bash'
         shell: bash
         run: |
-          ota run verify --dry-run --json . > .ota/ci/run-verify-dry-run.json
+          ota run config:check --dry-run --json . > .ota/ci/run-config-check-dry-run.json
           ota up --workflow verify --dry-run --json . > .ota/ci/up-verify-dry-run.json
           python - <<'PY'
           import json
           import sys
           from pathlib import Path
 
-          reports = [
-              json.loads(Path('.ota/ci/run-verify-dry-run.json').read_text()),
-              json.loads(Path('.ota/ci/up-verify-dry-run.json').read_text()),
-          ]
-          if not all(str(report.get('preview_status', '')).startswith('RUNNABLE') for report in reports):
-              print(json.dumps(reports, indent=2))
+          run_report = json.loads(Path('.ota/ci/run-config-check-dry-run.json').read_text())
+          workflow_report = json.loads(Path('.ota/ci/up-verify-dry-run.json').read_text())
+
+          if not str(run_report.get('preview_status', '')).startswith('RUNNABLE'):
+              print(json.dumps(run_report, indent=2))
+              sys.exit(1)
+
+          if workflow_report.get('preview_status') != 'BLOCKED':
+              print(json.dumps(workflow_report, indent=2))
+              sys.exit(1)
+
+          blocker = ((workflow_report.get('summary') or {}).get('primary_blocker') or {})
+          if blocker.get('code') != 'OTA_TOOL_MISSING':
+              print(json.dumps(workflow_report, indent=2))
+              sys.exit(1)
+
+          actions = (((workflow_report.get('plan') or {}).get('actions')) or [])
+          if not any('provision `vale`' in str(action) for action in actions):
+              print(json.dumps(workflow_report, indent=2))
               sys.exit(1)
           PY
 
@@ -186,17 +199,30 @@ jobs:
         if: matrix.run_shell == 'pwsh'
         shell: pwsh
         run: |
-          ota run verify --dry-run --json . | Out-File -FilePath .ota/ci/run-verify-dry-run.json -Encoding utf8
+          ota run config:check --dry-run --json . | Out-File -FilePath .ota/ci/run-config-check-dry-run.json -Encoding utf8
           ota up --workflow verify --dry-run --json . | Out-File -FilePath .ota/ci/up-verify-dry-run.json -Encoding utf8
-          $reports = @(
-            Get-Content .ota/ci/run-verify-dry-run.json -Raw | ConvertFrom-Json
-            Get-Content .ota/ci/up-verify-dry-run.json -Raw | ConvertFrom-Json
-          )
-          foreach ($report in $reports) {
-            if (-not $report.preview_status.StartsWith('RUNNABLE')) {
-              $report | ConvertTo-Json -Depth 100
-              exit 1
-            }
+
+          $runReport = Get-Content .ota/ci/run-config-check-dry-run.json -Raw | ConvertFrom-Json
+          $workflowReport = Get-Content .ota/ci/up-verify-dry-run.json -Raw | ConvertFrom-Json
+
+          if (-not $runReport.preview_status.StartsWith('RUNNABLE')) {
+            $runReport | ConvertTo-Json -Depth 100
+            exit 1
+          }
+
+          if ($workflowReport.preview_status -ne 'BLOCKED') {
+            $workflowReport | ConvertTo-Json -Depth 100
+            exit 1
+          }
+
+          if ($workflowReport.summary.primary_blocker.code -ne 'OTA_TOOL_MISSING') {
+            $workflowReport | ConvertTo-Json -Depth 100
+            exit 1
+          }
+
+          if (-not ($workflowReport.plan.actions | ForEach-Object { $_.ToString() } | Where-Object { $_ -like '*provision `vale`*' })) {
+            $workflowReport | ConvertTo-Json -Depth 100
+            exit 1
           }
 
       - name: Execute finite verification
@@ -216,7 +242,7 @@ jobs:
               print(json.dumps(report, indent=2))
               sys.exit(1)
           PY
-          ota run verify --native --stream .
+          ota run config:check --native --stream .
           ota up --workflow verify --native --stream .
 
       - name: Execute runtime proof
