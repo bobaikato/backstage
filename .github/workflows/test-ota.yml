@@ -180,7 +180,7 @@ jobs:
               print(json.dumps(run_report, indent=2))
               sys.exit(1)
 
-          if workflow_report.get('preview_status') != 'BLOCKED':
+          if not str(workflow_report.get('preview_status', '')).startswith('RUNNABLE'):
               print(json.dumps(workflow_report, indent=2))
               sys.exit(1)
 
@@ -210,7 +210,7 @@ jobs:
             exit 1
           }
 
-          if ($workflowReport.preview_status -ne 'BLOCKED') {
+          if (-not $workflowReport.preview_status.StartsWith('RUNNABLE')) {
             $workflowReport | ConvertTo-Json -Depth 100
             exit 1
           }
