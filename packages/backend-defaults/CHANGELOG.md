@@ -1,5 +1,17 @@
 # @backstage/backend-defaults
 
+## 0.17.4-next.0
+
+### Patch Changes
+
+- 8419f51: Added support for AWS PrivateLink for Amazon S3.
+- Updated dependencies
+  - @backstage/plugin-auth-node@0.7.3-next.0
+  - @backstage/backend-app-api@1.7.2-next.0
+  - @backstage/plugin-permission-node@0.11.2-next.0
+  - @backstage/backend-plugin-api@1.9.3-next.0
+  - @backstage/plugin-events-node@0.4.24-next.0
+
 ## 0.17.3
 
 ### Patch Changes
